@@ -10,7 +10,7 @@ int lastButton2State = LOW;
 unsigned long lastDebounceTime1 = 0;
 unsigned long lastDebounceTime2 = 0;
 unsigned long debounceDelay = 50;
-SoftwareSerial BTSerial(10, 9);
+SoftwareSerial BTSerial(9, 10);
 
 void setup() {
   // put your setup code here, to run once:
