@@ -57,4 +57,13 @@
         app:layout_constraintEnd_toStartOf="@+id/clear_button"
         app:layout_constraintTop_toBottomOf="@+id/grid" />
 
+    <Button
+        android:id="@+id/update_button"
+        android:layout_width="112dp"
+        android:layout_height="56dp"
+        android:layout_marginTop="32dp"
+        android:text="@string/UpdateButton"
+        app:layout_constraintEnd_toEndOf="@+id/grid"
+        app:layout_constraintTop_toBottomOf="@+id/clear_button" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
