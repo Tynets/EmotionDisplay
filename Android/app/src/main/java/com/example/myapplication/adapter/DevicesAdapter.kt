@@ -1,4 +1,4 @@
-package com.example.myapplication.bluetooth
+package com.example.myapplication.adapter
 
 import android.view.LayoutInflater
 import android.view.View
@@ -6,23 +6,24 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.myapplication.R
+import com.example.myapplication.data.BluetoothDeviceDO
 
-class DevicesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+class DevicesAdapter(val listener: (BluetoothDeviceDO) -> Unit) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    private val devices: LinkedHashSet <BluetoothDeviceDO> = linkedSetOf()
+    private var devices: List<BluetoothDeviceDO> = listOf()
 
     inner class TextFieldViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         fun bind(device: BluetoothDeviceDO) {
-            val item = itemView.findViewById<TextView>(R.id.deviceName)
-            item.text = device.name
+            itemView.findViewById<TextView>(R.id.deviceName).text = device.name
             itemView.findViewById<TextView>(R.id.deviceAddress).text = device.address
+            itemView.setOnClickListener { listener(device) }
             return
         }
     }
 
-    fun addDevice(device: BluetoothDeviceDO) {
-        this.devices.add(device)
-        notifyDataSetChanged()
+    fun updateDevices(devices: List<BluetoothDeviceDO>) {
+        this.devices = devices
+        this.notifyDataSetChanged()
         return
     }
 
@@ -36,10 +37,8 @@ class DevicesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val device: BluetoothDeviceDO = this.devices.toArray()[position] as BluetoothDeviceDO
-        when (holder) {
-            is TextFieldViewHolder -> holder.bind(device)
-        }
+        val device: BluetoothDeviceDO = this.devices[position]
+        when (holder) { is TextFieldViewHolder -> holder.bind(device) }
         return
     }
 

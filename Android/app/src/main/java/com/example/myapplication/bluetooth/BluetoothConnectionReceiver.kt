@@ -1,12 +1,9 @@
 package com.example.myapplication.bluetooth
 
-import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import androidx.core.app.ActivityCompat
 
 class BluetoothConnectionReceiver() : BroadcastReceiver() {
 
