@@ -11,8 +11,8 @@
 #define BTSmartphone Serial2
 
 //MEGA: 50 (MISO), 51 (MOSI), 52 (SCK)
-//MEGA: Serial1 - 19 (RX) and 18 (TX);
-//MEGA: Serial2 - 17 (RX) and 16 (TX);
+//MEGA: Serial1 - 19 (RX) and 18 (TX)
+//MEGA: Serial2 - 17 (RX) and 16 (TX)
 typedef struct Pixel {
     uint16_t pos;
     uint8_t r;
@@ -51,10 +51,10 @@ void sendCategory(uint8_t category) {
     file = SD.open(filename, FILE_READ);
     uint32_t size = file.size();
     byte* message = (byte*)(malloc(sizeof(Pixel) * size + sizeof(byte) * MESSAGE_HEADER));
-    file.readBytes((message + MESSAGE_HEADER), size);
+    file.readBytes(message + MESSAGE_HEADER, size);
     file.close();
     
-    message[0] = 'a';                   //command
+    message[0] = 'a';                   // command
     message[1] = category;              // category
     message[2] = i;                     // element
     message[3] = size & 0xFF;           // file size LSB (mask for first 8 bits)
@@ -63,6 +63,47 @@ void sendCategory(uint8_t category) {
 
     free(message);
   }
+}
+
+void updateElement() {
+  byte category = BTSmartphone.read();
+  byte element = BTSmartphone.read();
+  byte sizeLSB = BTSmartphone.read();
+  byte sizeMSB = BTSmartphone.read();
+  uint16_t size = sizeMSB;
+  size = (size << 8) | sizeLSB;
+  byte* pixels = (byte*)malloc(size);
+  BTSmartphone.readBytes(pixels, size);
+
+  char categoryString[10];
+  memset(categoryString, '\0', sizeof(char) * 10);
+  if (category == MOUTH_CATEGORY) {
+    if (element < 1 || element > MOUTH_SIZE) {
+      free(pixels);
+      return;
+    }
+    else sprintf(categoryString, "mouthes");
+  }
+  else if (category == EYE_CATEGORY) {
+    if (element < 1 || element > EYE_SIZE) {
+      free(pixels);
+      return;
+    }
+    else sprintf(categoryString, "eyes");
+  }
+  else {
+    free(pixels);
+    return;
+  }
+
+  char filename[50];
+  memset(filename, 0, 50 * sizeof(char));
+  sprintf(filename, "imgs/test/%s/%d.bin", categoryString, element); // CHANGE TEST
+  file = SD.open(filename, FILE_WRITE);
+  file.write((uint8_t*)pixels, size);
+  file.close();
+
+  free(pixels);
 }
 
 void setup() {
@@ -91,9 +132,7 @@ void loop() {
       sendCategory(MOUTH_CATEGORY);
       sendCategory(EYE_CATEGORY);
     }
-    else if (state == 'u') {
-      // update
-    }
+    else if (state == 'u') updateElement();
   }
   delay(20);
 }
