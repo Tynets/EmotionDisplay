@@ -2,6 +2,7 @@
     <string name="app_name">GridPaint</string>
     <string name="ClearButton">Clear</string>
     <string name="FillButton">Fill</string>
+    <string name="UpdateButton">Update</string>
     <string name="contentDescriptionIV">Pixel</string>
     <string name="EyesFolder">Eyes Category</string>
     <string name="MouthsFolder">Mouths Category</string>

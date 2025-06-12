@@ -1,16 +1,18 @@
 #include <Adafruit_NeoPixel.h>
 #include <SD.h>
-//#include <SoftwareSerial.h>
 #define MATRIX_PIN 8
 #define SD_PIN 9
 #define MOUTH_SIZE 10
 #define EYE_SIZE 10
+#define MOUTH_CATEGORY 0
+#define EYE_CATEGORY 1
+#define MESSAGE_HEADER 5
 #define BTRemote Serial1
 #define BTSmartphone Serial2
 
 //MEGA: 50 (MISO), 51 (MOSI), 52 (SCK)
-//MEGA: Serial1 - 19 (RX) and 18 (TX);
-//MEGA: Serial2 - 17 (RX) and 16 (TX);
+//MEGA: Serial1 - 19 (RX) and 18 (TX)
+//MEGA: Serial2 - 17 (RX) and 16 (TX)
 typedef struct Pixel {
     uint16_t pos;
     uint8_t r;
@@ -23,11 +25,86 @@ typedef struct Face {
   uint8_t currentEye;
 } Face;
 
-//SoftwareSerial BTSmartphone(12, 13);
 Adafruit_NeoPixel matrix(256, MATRIX_PIN, NEO_GRB + NEO_KHZ800);
 Face face;
 File file;
 File copyFile;
+
+void sendCategory(uint8_t category) {
+  uint8_t n = 0;
+  char categoryString[10];
+  memset(categoryString, '\0', sizeof(char) * 10);
+  if (category == MOUTH_CATEGORY) {
+    n = MOUTH_SIZE;
+    sprintf(categoryString, "mouthes");
+  }
+  else if (category == EYE_CATEGORY) {
+    n = EYE_SIZE;
+    sprintf(categoryString, "eyes");
+  }
+  else return;
+
+  for (uint8_t i = 1; i <= n; i++) {
+    char filename[50];
+    memset(filename, 0, 50 * sizeof(char));
+    sprintf(filename, "imgs/main/%s/%d.bin", categoryString, i);
+    file = SD.open(filename, FILE_READ);
+    uint32_t size = file.size();
+    byte* message = (byte*)(malloc(sizeof(Pixel) * size + sizeof(byte) * MESSAGE_HEADER));
+    file.readBytes(message + MESSAGE_HEADER, size);
+    file.close();
+    
+    message[0] = 'a';                   // command
+    message[1] = category;              // category
+    message[2] = i;                     // element
+    message[3] = size & 0xFF;           // file size LSB (mask for first 8 bits)
+    message[4] = (size >> 8) & 0xFF;    // file size MSB (remaining 8 bits)
+    BTSmartphone.write(message, MESSAGE_HEADER + size);
+
+    free(message);
+  }
+}
+
+void updateElement() {
+  byte category = BTSmartphone.read();
+  byte element = BTSmartphone.read();
+  byte sizeLSB = BTSmartphone.read();
+  byte sizeMSB = BTSmartphone.read();
+  uint16_t size = sizeMSB;
+  size = (size << 8) | sizeLSB;
+  byte* pixels = (byte*)malloc(size);
+  BTSmartphone.readBytes(pixels, size);
+
+  char categoryString[10];
+  memset(categoryString, '\0', sizeof(char) * 10);
+  if (category == MOUTH_CATEGORY) {
+    if (element < 1 || element > MOUTH_SIZE) {
+      free(pixels);
+      return;
+    }
+    else sprintf(categoryString, "mouthes");
+  }
+  else if (category == EYE_CATEGORY) {
+    if (element < 1 || element > EYE_SIZE) {
+      free(pixels);
+      return;
+    }
+    else sprintf(categoryString, "eyes");
+  }
+  else {
+    free(pixels);
+    return;
+  }
+
+  char filename[50];
+  memset(filename, 0, 50 * sizeof(char));
+  sprintf(filename, "imgs/test/%s/%d.bin", categoryString, element); // CHANGE TEST
+  file = SD.open(filename, FILE_WRITE);
+  file.write((uint8_t*)pixels, size);
+  file.close();
+
+  free(pixels);
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -45,13 +122,17 @@ void loop() {
   // put your main code here, to run repeatedly:
   if (BTRemote.available()) {
     byte state = BTRemote.read();
-    Serial.write(state);
     if (state == 'e') face.currentEye = ++face.currentEye % EYE_SIZE;
     else if (state == 'f') face.currentMouth = ++face.currentMouth % MOUTH_SIZE;
     displayFace();
   }
   if (BTSmartphone.available()) {
-    Serial.print(BTSmartphone.read());
+    byte state = BTSmartphone.read();
+    if (state == 'a') {
+      sendCategory(MOUTH_CATEGORY);
+      sendCategory(EYE_CATEGORY);
+    }
+    else if (state == 'u') updateElement();
   }
   delay(20);
 }

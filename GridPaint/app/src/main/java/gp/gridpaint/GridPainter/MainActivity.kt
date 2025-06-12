@@ -1,17 +1,21 @@
 package gp.gridpaint.GridPainter
 
+import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
 import android.widget.AdapterView
 import android.widget.Button
 import android.widget.GridView
-import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.get
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import gp.gridpaint.CategoryElementSelection.CategoryElementSelectionActivity
 import gp.gridpaint.R
+import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,14 +27,19 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        var color: Int = Color.WHITE
-        val element: String? = intent.getStringExtra("ID")
+        var color: Int = Color.BLUE
+        val element: String? = intent.getStringExtra("Element")
 
         val gridView: GridView = findViewById(R.id.grid)
         val list = ArrayList<PixelModel>()
-        val byteArray = intent.getByteArrayExtra("Bitmap")
-        val bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray!!.size);
-        for(i in 0..255) list.add(PixelModel(bitmap.getPixel(i % 16, i / 16), i))
+        val bitmap = BitmapFactory.decodeFile(this.filesDir.toString() + "/$element.png")
+        for (i in 0..255) {
+            val x: Int = i % 16
+            val y: Int = i / 16
+            var pos: Int = i
+            if (y % 2 == 0) pos = i + (15 - 2 * x)
+            list.add(PixelModel(bitmap[x, y], pos))
+        }
         val adapter = GridViewAdapter(this, list)
         gridView.adapter = adapter
         gridView.onItemClickListener = AdapterView.OnItemClickListener{ _, _, position, _ ->
@@ -57,7 +66,7 @@ class MainActivity : AppCompatActivity() {
 
         val clearButton: Button = findViewById(R.id.clear_button)
         clearButton.setOnClickListener {
-            for (l in list) l.color = Color.WHITE
+            for (l in list) l.color = Color.BLACK
             gridView.invalidateViews()
         }
 
@@ -65,6 +74,19 @@ class MainActivity : AppCompatActivity() {
         fillButton.setOnClickListener {
             for (l in list) l.color = color
             gridView.invalidateViews()
+        }
+
+        val updateButton: Button = findViewById(R.id.update_button)
+        updateButton.setOnClickListener {
+            val colors = IntArray(256)
+            for (i in 0..255) colors[i] = list[i].color
+            val bitmapUpdate = Bitmap.createBitmap(colors, 16, 16, Bitmap.Config.RGB_565)
+            val stream = FileOutputStream(this.filesDir.toString() + "/$element.png")
+            bitmapUpdate.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            stream.flush()
+            stream.close()
+            val intent = Intent(this, CategoryElementSelectionActivity::class.java)
+            startActivity(intent)
         }
     }
 }
