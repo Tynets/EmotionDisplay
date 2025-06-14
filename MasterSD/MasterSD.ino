@@ -98,8 +98,10 @@ void updateElement() {
 
   char filename[50];
   memset(filename, 0, 50 * sizeof(char));
-  sprintf(filename, "imgs/test/%s/%d.bin", categoryString, element); // CHANGE TEST
+  sprintf(filename, "imgs/main/%s/%d.bin", categoryString, element);
+  if (SD.exists(filename)) SD.remove(filename);
   file = SD.open(filename, FILE_WRITE);
+  file.seek(0);
   file.write((uint8_t*)pixels, size);
   file.close();
 
@@ -108,7 +110,6 @@ void updateElement() {
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(9600);
   BTRemote.begin(38400);
   BTSmartphone.begin(9600);
   SD.begin(SD_PIN);
@@ -132,7 +133,10 @@ void loop() {
       sendCategory(MOUTH_CATEGORY);
       sendCategory(EYE_CATEGORY);
     }
-    else if (state == 'u') updateElement();
+    else if (state == 'u') {
+      updateElement();
+      displayFace();
+    }
   }
   delay(20);
 }
@@ -146,10 +150,6 @@ void displayFace() {
   file = SD.open(filename, FILE_READ);
   while(file.available()) {
     file.read((uint8_t *)&pixel, sizeof(Pixel) / sizeof(uint8_t));
-    //Serial.print(pixel.pos); Serial.print(' ');
-    //Serial.print(pixel.r); Serial.print(' ');
-    //Serial.print(pixel.g); Serial.print(' ');
-    //Serial.print(pixel.b); Serial.println();
     matrix.setPixelColor(pixel.pos, pixel.r, pixel.g, pixel.b);
   }
   file.close();
@@ -159,10 +159,6 @@ void displayFace() {
   file = SD.open(filename, FILE_READ);
   while(file.available()) {
     file.read((uint8_t *)&pixel, sizeof(Pixel) / sizeof(uint8_t));
-    //Serial.print(pixel.pos); Serial.print(' ');
-    //Serial.print(pixel.r); Serial.print(' ');
-    //Serial.print(pixel.g); Serial.print(' ');
-    //Serial.print(pixel.b); Serial.println();
     matrix.setPixelColor(pixel.pos, pixel.r, pixel.g, pixel.b);
   }
   file.close();
