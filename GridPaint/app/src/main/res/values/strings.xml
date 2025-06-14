@@ -4,6 +4,6 @@
     <string name="FillButton">Fill</string>
     <string name="UpdateButton">Update</string>
     <string name="contentDescriptionIV">Pixel</string>
-    <string name="EyesFolder">Eyes Category</string>
-    <string name="MouthsFolder">Mouths Category</string>
+    <string name="EyesCategory">Eyes Category</string>
+    <string name="MouthsCategory">Mouths Category</string>
 </resources>
