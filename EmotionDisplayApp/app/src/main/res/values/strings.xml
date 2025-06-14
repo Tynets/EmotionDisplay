@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Emotion Display</string>
+    <string name="startDiscovery">Start discovery</string>
+    <string name="stopDiscovery">Stop discovery</string>
+    <string name="pairedDevices">Paired devices</string>
+    <string name="discoveredDevices">Discovered devices</string>
+    <string name="connected">Connected</string>
+    <string name="notConnected">Not connected</string>
+    <string name="empty"> </string>
+    <string name="eyesFolder">Eyes</string>
+    <string name="mouthsFolder">Mouths</string>
+    <string name="ClearButton">Clear</string>
+    <string name="FillButton">Fill</string>
+    <string name="UpdateButton">Update</string>
+    <string name="contentDescriptionIV">Pixel</string>
+    <string name="EyesCategory">Eyes Category</string>
+    <string name="MouthsCategory">Mouths Category</string>
+</resources>
