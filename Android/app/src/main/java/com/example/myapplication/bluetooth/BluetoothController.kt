@@ -8,7 +8,12 @@ import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import androidx.core.app.ActivityCompat
+import android.util.Log
+import com.example.myapplication.data.Message
+import com.example.myapplication.data.BluetoothDeviceDO
+import com.example.myapplication.data.toBluetoothDeviceDO
+import com.example.myapplication.data.toByteArray
+import com.example.myapplication.data.toUnsignedInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -19,12 +24,23 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.util.UUID
+import kotlin.Throws
 
-class BluetoothController(private val context: Context) {
+class BluetoothController private constructor(private val context: Context){
+
+    companion object {
+        @Volatile
+        private var instance: BluetoothController? = null
+        fun getInstance(context: Context) =
+            instance ?: synchronized(this) {
+                instance ?: BluetoothController(context).also { instance = it }
+            }
+    }
 
     private val serviceUUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 
@@ -42,22 +58,27 @@ class BluetoothController(private val context: Context) {
     private val _isConnected: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> get() = _isConnected.asStateFlow()
 
-    private val _messages: MutableSharedFlow<String> = MutableSharedFlow()
-    val messages: SharedFlow<String> get() = this._messages.asSharedFlow()
+    private val _message: MutableSharedFlow<String> = MutableSharedFlow()
+    val message: SharedFlow<String> get() = this._message.asSharedFlow()
 
-    private val receiver = BluetoothDeviceReceiver { device ->
+    private var stopListening: Boolean = false
+
+    private val receiver: BluetoothDeviceReceiver = BluetoothDeviceReceiver { device ->
         this._discoveredDevices.update { devices ->
-            if (device !in devices) devices + device else devices
+            when (device) {
+                in this._pairedDevices.value -> devices
+                !in devices -> devices + device
+                else -> devices
+            }
         }
     }
-    private val connectionReceiver = BluetoothConnectionReceiver { isConnected, device ->
+
+    private val connectionReceiver: BluetoothConnectionReceiver = BluetoothConnectionReceiver { isConnected, device ->
         try {
             if (bluetoothAdapter?.bondedDevices?.contains(device) == true) _isConnected.update { isConnected }
-            else {
-                CoroutineScope(Dispatchers.Default).launch { _messages.emit("Cannot connect"); }
-            }
+            // else CoroutineScope(Dispatchers.Default).launch { _message.emit("Enter pairing code") }
         } catch (e: SecurityException) {
-            CoroutineScope(Dispatchers.Default).launch { _messages.emit(e.toString()); }
+            CoroutineScope(Dispatchers.Default).launch { Log.d("Controller", e.toString()) }
         }
     }
 
@@ -75,7 +96,8 @@ class BluetoothController(private val context: Context) {
     private fun updatePairedDevices() {
         if (this.context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
             != PackageManager.PERMISSION_GRANTED) return
-        this.bluetoothAdapter?.bondedDevices?.also { this._pairedDevices.update { it } }
+        this.bluetoothAdapter?.bondedDevices?.map { it.toBluetoothDeviceDO() }
+            ?.let { devices -> this._pairedDevices.update { devices } }
         return
     }
 
@@ -109,13 +131,24 @@ class BluetoothController(private val context: Context) {
         if (this.context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
             != PackageManager.PERMISSION_GRANTED) return
         cancelDiscovery()
-        val device = bluetoothAdapter?.getRemoteDevice(device.address)
-        this.clientSocket = device?.createRfcommSocketToServiceRecord(serviceUUID)
+        CoroutineScope(Dispatchers.Default).launch { _message.emit("Trying to connect") }
+        val remoteDevice = bluetoothAdapter?.getRemoteDevice(device.address)
+        this.clientSocket = remoteDevice?.createRfcommSocketToServiceRecord(serviceUUID)
         try {
+            // Execute BEFORE updating the list of devices
             this.clientSocket?.connect()
+            if (device !in this._pairedDevices.value) {
+                this.updatePairedDevices()
+                // Execute AFTER connecting to the device
+                this._discoveredDevices.update { devices -> devices - device }
+                Log.d("Controller", "Connected to $device")
+            }
+            CoroutineScope(Dispatchers.Default).launch { _message.emit("Connected") }
         }
         catch (e: IOException) {
             this.disconnectFromDevice()
+            CoroutineScope(Dispatchers.Default).launch { _message.emit("Cannot connect") }
+            Log.d("Controller", "$e")
         }
         return
     }
@@ -127,7 +160,59 @@ class BluetoothController(private val context: Context) {
     }
 
     fun sendMessage(message: Message) {
-        this.clientSocket?.outputStream?.write(message.toByteArray())
+        try {
+            this.clientSocket?.outputStream?.write(message.toByteArray())
+        } catch (e: IOException) {
+            CoroutineScope(Dispatchers.Default).launch { _message.emit("Error") }
+            Log.d("Controller", e.toString())
+        }
+        return
+    }
+
+    // command          0
+    // category         1
+    // position         2
+    // sizeLSB          3
+    // sizeMSB          4
+    // pixels:
+    //    positionLSB   5
+    //    positionMSB   6
+    //    R             7
+    //    G             8
+    //    B             9
+    private fun receiveMessage() : Message? {
+        try {
+            val byte = ByteArray(1)
+            val header = ByteArray(5)
+            for (i in 0 ..< 5) {
+                this.clientSocket?.inputStream?.read(byte)
+                header[i] = byte[0]
+            }
+            val size: Int = (header[4].toUnsignedInt() shl 8) or (header[3]).toUnsignedInt()
+            val data = ByteArray(size)
+            for (i in 0..<size) {
+                this.clientSocket?.inputStream?.read(byte)
+                data[i] = byte[0]
+            }
+            return Message(header[0], header[1], header[2], header[3], header[4], data)
+        } catch (e: IOException) {
+            Log.d("Controller", e.toString())
+        }
+        return null
+    }
+
+    fun startListening(): Flow<Message> {
+        return flow {
+            while (!stopListening) {
+                if (!isConnected.value) return@flow
+                val message: Message? = receiveMessage()
+                message?.let { emit(it) }
+            }
+        }.flowOn(Dispatchers.IO)
+    }
+
+    fun stopListening() {
+        this.stopListening = true
         return
     }
 
