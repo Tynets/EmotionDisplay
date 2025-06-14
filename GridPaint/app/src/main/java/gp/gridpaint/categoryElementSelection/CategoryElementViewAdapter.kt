@@ -1,4 +1,4 @@
-package gp.gridpaint.CategoryElementSelection
+package gp.gridpaint.categoryElementSelection
 
 import android.graphics.Bitmap
 import android.view.LayoutInflater

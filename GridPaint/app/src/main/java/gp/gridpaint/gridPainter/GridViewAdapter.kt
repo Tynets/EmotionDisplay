@@ -1,4 +1,4 @@
-package gp.gridpaint.GridPainter
+package gp.gridpaint.gridPainter
 
 import android.content.Context
 import android.view.LayoutInflater

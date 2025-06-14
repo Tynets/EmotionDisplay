@@ -1,4 +1,4 @@
-package gp.gridpaint.CategoryElementSelection
+package gp.gridpaint.categoryElementSelection
 
 import android.content.Intent
 import android.graphics.BitmapFactory
@@ -9,7 +9,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import gp.gridpaint.GridPainter.MainActivity
+import gp.gridpaint.gridPainter.MainActivity
 import gp.gridpaint.R
 
 class CategoryElementSelectionActivity : AppCompatActivity() {

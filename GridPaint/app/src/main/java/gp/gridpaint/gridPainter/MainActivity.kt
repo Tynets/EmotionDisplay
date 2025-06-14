@@ -1,4 +1,4 @@
-package gp.gridpaint.GridPainter
+package gp.gridpaint.gridPainter
 
 import android.content.Intent
 import android.graphics.Bitmap
@@ -17,7 +17,7 @@ import androidx.core.graphics.green
 import androidx.core.graphics.red
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import gp.gridpaint.CategoryElementSelection.CategoryElementSelectionActivity
+import gp.gridpaint.categoryElementSelection.CategoryElementSelectionActivity
 import gp.gridpaint.R
 import java.io.FileOutputStream
 
